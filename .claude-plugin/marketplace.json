@@ -1,0 +1,17 @@
+{
+  "name": "deepmorph",
+  "owner": {
+    "name": "DeepMorphAI",
+    "email": "founders@deepmorph.ai"
+  },
+  "description": "DeepMorph Orchestrator for graph-grounded software development",
+  "plugins": [
+    {
+      "name": "orchestrator",
+      "source": "./ark-plugin",
+      "description": "Use DeepMorph Orchestrator to query code knowledge graphs from Claude Code",
+      "category": "development",
+      "tags": ["knowledge-graph", "mcp", "code-intelligence"]
+    }
+  ]
+}
