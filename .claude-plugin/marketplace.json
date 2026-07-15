@@ -7,7 +7,7 @@
   "description": "DeepMorph Orchestrator for graph-grounded software development",
   "plugins": [
     {
-      "name": "deepmorphai",
+      "name": "deepmorph",
       "source": "./plugin",
       "description": "Use DeepMorph Orchestrator to query code knowledge graphs from Claude Code",
       "category": "development",
