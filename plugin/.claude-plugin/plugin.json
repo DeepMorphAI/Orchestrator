@@ -1,0 +1,9 @@
+{
+  "name": "deepmorphai",
+  "version": "0.0.1",
+  "description": "Use DeepMorph Orchestrator to query code knowledge graphs from Claude Code",
+  "author": {
+    "name": "DeepMorphAI",
+    "email": "founders@deepmorph.ai"
+  }
+}
