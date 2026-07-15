@@ -65,10 +65,10 @@ Install the DeepMorph plugin from this repository's marketplace:
 
 ```text
 /plugin marketplace add DeepMorphAI/Orchestrator
-/plugin install orchestrator@deepmorph
+/plugin install deepmorphai@orchestrator
 ```
 
-The plugin configures the hosted MCP server and provides the `/orchestrator:context`
+The plugin configures the hosted MCP server and provides the `/deepmorphai:map`
 skill. Claude Code opens a browser OAuth flow on first use and stores the token
 automatically.
 

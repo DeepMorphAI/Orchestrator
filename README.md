@@ -7,11 +7,11 @@ through a read-only MCP server.
 
 ```text
 /plugin marketplace add DeepMorphAI/Orchestrator
-/plugin install orchestrator@deepmorph
+/plugin install deepmorphai@orchestrator
 /reload-plugins
 ```
 
-Run `/orchestrator:context` to gather graph context for a coding task.
+Run `/deepmorphai:map` to gather graph context for a coding task.
 
 ## Repository layout
 

@@ -1,11 +1,11 @@
 ---
-name: context
-description: Use DeepMorph Orchestrator to query the code knowledge graph for repo and task context. Call at the start of any bug fix, feature implementation, or non-trivial edit before reading files or writing code.
+name: map
+description: Use DeepMorph Orchestrator to map a coding task onto the code knowledge graph for repo and task context. Call at the start of any bug fix, feature implementation, or non-trivial edit before reading files or writing code.
 disable-model-invocation: true
 allowed-tools: mcp__orchestrator__bootstrap mcp__orchestrator__listGraphs mcp__orchestrator__listCodebases mcp__orchestrator__getFileContext mcp__orchestrator__getFeatureContext mcp__orchestrator__getDataFlow mcp__orchestrator__getCallChain mcp__orchestrator__searchCode mcp__orchestrator__getSchema mcp__orchestrator__queryGraph
 ---
 
-# /context
+# /deepmorphai:map
 
 Use DeepMorph Orchestrator to query the code knowledge graph before starting work.
 
