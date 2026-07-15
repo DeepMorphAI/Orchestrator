@@ -1,5 +1,5 @@
 {
-  "name": "deepmorphai",
+  "name": "deepmorph",
   "version": "0.1.0",
   "description": "Use DeepMorph Orchestrator to query code knowledge graphs from Claude Code",
   "author": {

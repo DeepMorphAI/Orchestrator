@@ -5,7 +5,7 @@ disable-model-invocation: true
 allowed-tools: mcp__orchestrator__bootstrap mcp__orchestrator__listGraphs mcp__orchestrator__listCodebases mcp__orchestrator__getFileContext mcp__orchestrator__getFeatureContext mcp__orchestrator__getDataFlow mcp__orchestrator__getCallChain mcp__orchestrator__getImpact mcp__orchestrator__searchCode mcp__orchestrator__getSchema mcp__orchestrator__queryGraph
 ---
 
-# /deepmorphai:map
+# /deepmorph:map
 
 Use DeepMorph Orchestrator to query the code knowledge graph before starting work.
 

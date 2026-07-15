@@ -9,18 +9,18 @@ to run locally.
 
 ```text
 /plugin marketplace add DeepMorphAI/Orchestrator
-/plugin install deepmorphai@orchestrator
+/plugin install deepmorph@orchestrator
 /reload-plugins
 ```
 
-Run `/deepmorphai:map` at the start of a bug fix, feature, or non-trivial edit
+Run `/deepmorph:map` at the start of a bug fix, feature, or non-trivial edit
 to map the task onto the code knowledge graph before reading files or writing
 code. On first use, Claude Code opens a browser OAuth flow and stores the token
 automatically.
 
 ## What it does
 
-The `/deepmorphai:map` skill queries a three-layer knowledge graph — **Code**
+The `/deepmorph:map` skill queries a three-layer knowledge graph — **Code**
 (files, functions, types), **Data** (entities and their lifecycle), and
 **Business** (features, rules, scenarios, steps) — and synthesizes a focused,
 task-oriented context summary to ground the work that follows.
@@ -44,6 +44,6 @@ specific commit) against your working tree so stale facts don't slip through.
 ## Repository layout
 
 - `plugin/` — the Claude Code plugin: the MCP connection (`.mcp.json`) and the
-  `/deepmorphai:map` context skill.
+  `/deepmorph:map` context skill.
 - `.claude-plugin/marketplace.json` — publishes the plugin through this
   repository's marketplace.
