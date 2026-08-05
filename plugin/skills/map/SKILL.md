@@ -130,11 +130,26 @@ the pages group and what behavior each group serves.
    seed_terms=[<paths and component names>])` to surface the matching
    `UIComponent` nodes and their connected Business/Code context.
 3. Where the sample does not expose the needed relationship, run targeted
-   `queryGraph` traversals grounded in `bootstrap.schema` — containment and
-   implementation:
-   `MATCH (p:UIComponent {role: 'page'})-[:HAS_UI*0..3]->(c:UIComponent)-[:USES_RESOURCE]->(f:File) WHERE f.file_path IN $paths RETURN p, c, f`
-   and behavioral ownership: `MATCH (s)-[:USES_UI]->(c:UIComponent)` from the
-   Scenario, Feature, or Step side.
+   `queryGraph` traversals grounded in `bootstrap.schema`. Bind and return
+   paths and relationships so `queryGraph` preserves the grouping structure.
+   For containment and implementation:
+
+   ```cypher
+   MATCH path=(p:Business:UIComponent {role: 'page'})-[:HAS_UI*0..3]->(c:Business:UIComponent)
+   MATCH (c)-[resource:USES_RESOURCE]->(f:Code:File)
+   WHERE f.file_path IN $paths
+   RETURN path, resource, f
+   ```
+
+   For behavioral ownership from the Feature, Scenario, or Step side:
+
+   ```cypher
+   MATCH (owner:Business)-[uses:USES_UI]->(surface:Business:UIComponent)
+   MATCH path=(surface)-[:HAS_UI*0..3]->(c:Business:UIComponent)
+   MATCH (c)-[resource:USES_RESOURCE]->(f:Code:File)
+   WHERE f.file_path IN $paths
+   RETURN owner, uses, path, resource, f
+   ```
 4. Reconcile the resulting grouping against source, especially files changed
    locally since the graph's build commit.
 
