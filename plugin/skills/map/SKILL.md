@@ -7,26 +7,64 @@ allowed-tools: mcp__orchestrator__bootstrap mcp__orchestrator__queryGraph mcp__o
 
 # /deepmorph:map
 
-Use DeepMorph Orchestrator to query the code knowledge graph before starting
-work.
+Query the code knowledge graph before starting work, and again whenever the
+task asks a relational question.
 
-## Working principle: source for truth, graph for relationships
+## What the graph knows that grep cannot
 
-You are running inside a coding agent with full access to the repository. Split
-the work by what each side is best at:
+The graph is one connected model of every indexed codebase, in four layers.
+None of these relationships are recoverable from file contents:
 
-- **Your own read / grep / glob tools own the source.** They are current and
-  complete locally. Do not use the graph as a plain-text grep substitute.
-- **The graph owns cross-cutting relationships** that local search cannot
-  cheaply reconstruct: transitive call chains, data lifecycles, modeled
-  behavioral flows, and connections across Code, Data, and Business layers.
-- **Reconcile graph evidence against source.** The graph reflects the commit in
-  `bootstrap().builds[].git_commit_hash`; the working tree may be ahead of it.
-  Confirm claims about locally changed files in source.
-- **Calibrate negative claims by layer.** The parser-derived Code layer covers
-  every indexed codebase. Data, Business, and UI projections are inferred and
-  can be incomplete. A missing inferred node or relationship is not evidence
-  that a capability is absent.
+- **Code** (parser-derived, complete for indexed codebases): transitive call
+  chains (`CALLS_FUNC`), type dependencies (`EXTENDS_TYPE`, `DEPENDS_TYPE`,
+  `INPUTS_TYPE`, `OUTPUTS_TYPE`, `THROWS_TYPE`), and code-to-artifact links
+  (`RENDERS`, `READS_CONFIG`, `USES_QUERY`). Nodes: `Code:File`, `Code:Type`,
+  `Code:Function`, `Code:Variable`, `Code:Artifact`.
+- **UI**: `Business:UIComponent` nodes carry a `role` (`page`, `screen`,
+  `surface`). `HAS_UI` is containment (page contains form contains button),
+  `NAVIGATES_TO` is ordered navigation between surfaces, `USES_RESOURCE`
+  links a component to the source file implementing it, `USES_ARTIFACT` to a
+  template, `USES_TYPE` to the domain types it shows.
+- **Business**: journeys, scenarios, and ordered steps (`NEXT_SCENARIO`,
+  `NEXT_STEP`) plus rules and features, linked to implementing functions
+  (`USES_FUNC`), to entities (`USES_ENTITY`), and to surfaces (`USES_UI`).
+- **Data**: `Data:DataEntity` lifecycles — the functions that create, use,
+  transform, validate, filter, and save each entity (`CREATED_BY`, `USED_BY`,
+  `TRANSFORMED_BY`, `VALIDATED_BY`, `FILTERED_BY`, `SAVED_BY`) — plus entity
+  associations (`ASSOCIATES_ONE`, `ASSOCIATES_MANY`).
+
+The layers are connected, so navigation works top-down as well as bottom-up.
+You can enter at the Business layer — a journey, scenario, feature, or rule
+named in product terms — and descend through `USES_FUNC`, `USES_UI`, and
+`USES_ENTITY` to the exact functions, surfaces, and entities that implement
+it, before opening a single file. When a task arrives in business language
+with no code anchor yet, start there (`namespaceDirectory`, `traceFlow`)
+instead of guessing grep terms.
+
+Grouping, ownership, navigation, behavioral attribution, data responsibility,
+and impact are therefore graph questions. Local tools cannot answer them: a
+hand-built import graph over-attributes every shared module and sees none of
+the UI, Business, or Data edges above.
+
+## Working principle: source for facts, graph for relationships
+
+- **Local read / grep / glob own lexical and implementation facts** — exact
+  strings, file contents, final verification. Do not use the graph as grep.
+- **Finding source is the beginning of relational analysis, not the end.** A
+  grep hit locates a label or identifier; it cannot justify grouping pages,
+  assigning behavioral ownership, or describing data responsibility. Carry
+  the matched paths, symbols, and type names into the graph as anchors.
+- **Expect graph output to be less predictable than grep output.** That is
+  what makes it informative. Preferring the tool whose result you can already
+  predict is a bias toward what you control, not a judgment about what is
+  useful — and it is how known-wrong groupings get shipped. The graph-usage
+  line in the synthesis format exists to catch exactly this.
+- **Reconcile graph evidence against source.** The graph reflects the commit
+  in `bootstrap().builds[].git_commit_hash`; the working tree may be ahead of
+  it. Confirm claims about locally changed files in source.
+- **Calibrate negative claims by layer.** Code is parser-complete for indexed
+  codebases; UI, Business, and Data are inferred projections and can be
+  incomplete. A missing inferred node or edge is never evidence of absence.
 
 ## Behavior
 
@@ -41,17 +79,25 @@ the work by what each side is best at:
    - Use `bootstrap.schema` as the live storage-shape reference and
      `bootstrap.codebases` as the complete codebase scope for the selected
      graph.
-   - Note each entry in `bootstrap.builds`. If the working tree is ahead of its
-     `git_commit_hash`, verify affected graph facts in source.
+   - Note each entry in `bootstrap.builds`. If the working tree is ahead of
+     its `git_commit_hash`, verify affected graph facts in source.
 
 2. Scope only when the question requires it:
-   - Omit codebase filters for a single-codebase graph or a graph-wide question.
+   - Omit codebase filters for a single-codebase graph or a graph-wide
+     question.
    - For comparisons or ambiguous names, pass the relevant IDs from
      `bootstrap.codebases` to tools that accept `codebase_ids`, or the single
      relevant ID to tools that accept `codebase_id`.
 
-3. Choose tools using the strategy below. Run independent lookups in parallel
-   when the client supports parallel MCP calls.
+3. Minimum engagement. Before concluding, check: does the answer claim
+   anything about grouping, ownership, flow, navigation, dependency, data, or
+   impact? Every such claim needs a graph lookup behind it — at least one
+   query beyond `bootstrap`, re-aimed once through the empty-result ladder if
+   the first result is thin. One thin result is a prompt to change tool or
+   anchors, not permission to fall back to local reconstruction. If the graph
+   is skipped for such a claim anyway, the graph-usage line must say so and
+   give the reason. Run independent lookups in parallel when the client
+   supports parallel MCP calls.
 
 4. Before repo/filesystem inspection after graph lookup, load the shell tool
    schema first:
@@ -59,17 +105,8 @@ the work by what each side is best at:
    - When calling the shell tool, use the required `command` parameter name,
      not `cmd`.
 
-5. Summarize only task-relevant evidence, then continue with the actual coding
-   work. Do not stop after graph orientation.
-
-## Schema grounding
-
-- Treat `bootstrap.schema` as the live Neo4j storage shape for the selected
-  graph.
-- Prefer typed tools because they encode supported graph traversals and
-  bounded result behavior.
-- Use `queryGraph` only when no typed tool covers the question. Keep the query
-  read-only, parameterized, and grounded in `bootstrap.schema`.
+5. Summarize only task-relevant evidence, then continue with the actual
+   coding work. Do not stop after graph orientation.
 
 ## Graph selection example
 
@@ -83,19 +120,59 @@ When `bootstrap()` returns `requires_graph_selection = true`:
 
 Wait for the user's reply before proceeding.
 
+## Worked example: grouping and ownership
+
+Task: a grep for UI label strings found 14 component files; the task asks how
+the pages group and what behavior each group serves.
+
+1. Keep the exact file paths and component names from grep as anchors.
+2. Call `exploreKnowledgeGraph(goal="page grouping and ownership for <area>",
+   seed_terms=[<paths and component names>])` to surface the matching
+   `UIComponent` nodes and their connected Business/Code context.
+3. Where the sample does not expose the needed relationship, run targeted
+   `queryGraph` traversals grounded in `bootstrap.schema`. Bind and return
+   paths and relationships so `queryGraph` preserves the grouping structure.
+   For containment and implementation:
+
+   ```cypher
+   MATCH path=(p:Business:UIComponent {role: 'page'})-[:HAS_UI*0..3]->(c:Business:UIComponent)
+   MATCH (c)-[resource:USES_RESOURCE]->(f:Code:File)
+   WHERE f.file_path IN $paths
+   RETURN path, resource, f
+   ```
+
+   For behavioral ownership from the Feature, Scenario, or Step side:
+
+   ```cypher
+   MATCH (owner:Business)-[uses:USES_UI]->(surface:Business:UIComponent)
+   MATCH path=(surface)-[:HAS_UI*0..3]->(c:Business:UIComponent)
+   MATCH (c)-[resource:USES_RESOURCE]->(f:Code:File)
+   WHERE f.file_path IN $paths
+   RETURN owner, uses, path, resource, f
+   ```
+4. Reconcile the resulting grouping against source, especially files changed
+   locally since the graph's build commit.
+
+The same shape applies to any relational task: anchors from source → typed
+tool or exploration → targeted traversal → reconcile against source.
+
 ## Query strategy
 
-Map task signals directly to tools:
+Prefer typed tools; they encode supported traversals and bounded results. Use
+`queryGraph` only when no typed tool covers the question, keeping it
+read-only, parameterized, and grounded in `bootstrap.schema`.
 
 | Signal | Primary tool | How to use it |
 |---|---|---|
+| Task stated in product/business terms with no code anchor yet | `namespaceDirectory` or `traceFlow`, then descend | Resolve the journey or scenario first, then follow its steps' `USES_FUNC`, `USES_UI`, and `USES_ENTITY` links (targeted `queryGraph`, `getCallChain`, `getDataFlow`) down to the implementing code. |
 | Unfamiliar subsystem, architecture, integration, or broad task | `exploreKnowledgeGraph` | First-pass orientation only. Choose the closest mode and provide specific seed terms. Its balanced sample is not a complete inventory. |
 | Focused flow, journey, sequence, stages, or branches | `traceFlow` | Expand the real `NEXT_SCENARIO` branches and `NEXT_STEP` order. Retry with a directory entry when the term is unresolved or diffuse. A `family` resolution intentionally expands every matching namespace under the prefix. |
-| Whole-flow coverage, parity, or cross-system flow comparison | `namespaceDirectory`, then `traceFlow` | Pull the complete grouped index first. Classify every journey and namespace, review the exact unclassified count and listed stable identifiers, expand every relevant entry separately, then compare expansions. Never infer steps from a name. |
-| Function or method name | `getCallChain` | Exact qualified names resolve directly. A loose name intentionally returns token-scored qualified-name candidates; retry the intended candidate for outbound transitive calls and direct inbound callers. |
+| Whole-flow coverage, parity, or cross-system flow comparison | `namespaceDirectory`, then `traceFlow` | Pull the complete grouped index first, expand every relevant entry separately, then compare expansions. Never infer steps from a name. |
+| Function or method name | `getCallChain` | Exact qualified names resolve directly. A loose name returns token-scored candidates; retry the intended candidate for outbound transitive calls and direct inbound callers. |
 | Data entity or model name | `getDataFlow` | Returns lifecycle-function links and peer entity associations. Matching is case-insensitive; retry a returned candidate on a miss. |
-| Existence, surface parity, or likely implementation paths | `searchCode` | Search concept terms across every relevant codebase. It returns file-path counts and samples, not file contents or proof of behavior. Inspect positive paths in source; treat zero as unconfirmed, never absent. |
-| File/function impact, cross-layer trace, exact inventory, or a question no typed tool covers | `queryGraph` | Write a targeted read-only query from `bootstrap.schema`. Treat sparse Code-to-Business paths as leads, not a complete blast radius. Use count queries when completeness matters. |
+| Existence, surface parity, or likely implementation paths | `searchCode` | Search concept terms across every relevant codebase. Returns file-path counts and samples, not contents or proof of behavior. Inspect positive paths in source; treat zero as unconfirmed, never absent. |
+| Source search found files/components and the task asks how they group, what owns them, or what behavior they implement | `exploreKnowledgeGraph`, then targeted `queryGraph` | Follow the worked example above: seed with exact paths and symbols, follow the returned Business/UI/Data/Code connections, then traverse. |
+| File/function impact, cross-layer trace, exact inventory, or a question no typed tool covers | `queryGraph` | Write a targeted read-only query from `bootstrap.schema`. Start from exact Code anchors and traverse the connected Business, UI, and Data edges. Use count queries when completeness matters. |
 
 ### Exploration modes
 
@@ -110,51 +187,48 @@ Use the narrowest suitable `exploreKnowledgeGraph` mode:
 
 Exploration is bounded by query and item budgets. Coverage flags and gaps say
 which passes produced evidence; they do not turn the returned sample into a
-complete inventory.
+complete inventory. Do not use `exploreKnowledgeGraph` for completeness,
+parity, or absence claims.
 
 ### Flow completeness
 
 For a focused, already-known flow, call `traceFlow` directly. For broad flow
 questions, coverage checks, or comparisons:
 
-1. Call `namespaceDirectory` first.
-2. Review every journey and namespace, including single-scenario entries. Also
-   review the exact unclassified count and every stable identifier returned in
-   its bounded listing; narrow with `codebase_ids` when that listing is sampled.
-3. Treat unclear entries as in scope until expanded.
-4. Call `traceFlow` once for every relevant entry and once per comparison side.
-5. Compare ordered steps and alternate, failure, recovery, and background
+1. Call `namespaceDirectory` first and review every journey and namespace,
+   including single-scenario entries, the exact unclassified count, and every
+   stable identifier in its bounded listing; narrow with `codebase_ids` when
+   that listing is sampled.
+2. Treat unclear entries as in scope until expanded. An entry present in the
+   directory but not expanded is unlooked-at, not absent.
+3. Call `traceFlow` once per relevant entry and once per comparison side, then
+   compare ordered steps and alternate, failure, recovery, and background
    branches. Do not compare names alone.
 
-An entry present in the directory but not expanded is unlooked-at, not absent.
-`traceFlow` reports `resolution_mode`: `exact` is one selected grouping or stable
-scenario identifier, `family` intentionally combines every namespace below a
-prefix, and `token` is natural-language resolution. If a stage is missing from
-the grouped directory or the bounded unclassified listing, search likely
-configuration, route, wizard, page, and component terms with `searchCode`, then
-inspect source before making a claim.
+`traceFlow` reports `resolution_mode`: `exact` is one selected grouping or
+stable scenario identifier, `family` combines every namespace below a prefix,
+`token` is natural-language resolution. If a stage is missing from the
+directory, search likely configuration, route, wizard, page, and component
+terms with `searchCode`, then inspect source before making a claim.
 
 ### Existence and parity
-
-For whether-something-exists questions and cross-codebase surface comparisons:
 
 1. Build a small set of specific concept terms and useful synonyms.
 2. Call `searchCode` across every codebase involved.
 3. Inspect returned sample paths in source before describing behavior.
-4. Treat `zero_in_scope` as "not confirmed in indexed file paths," not as
+4. Treat `zero_in_scope` as "not confirmed in indexed file paths," never as
    evidence of absence.
-5. Use targeted `queryGraph` counts or source inspection when the claim must be
-   exhaustive.
-
-Do not use `exploreKnowledgeGraph` for completeness, parity, or absence claims.
+5. Use targeted `queryGraph` counts or source inspection when the claim must
+   be exhaustive.
 
 ### File and impact questions
 
 There is no dedicated file-context or impact tool. Read the file in source,
 then use the exact identifiers it contains with `getCallChain`, `getDataFlow`,
-or a targeted `queryGraph` traversal. Code-to-behavior relationships are sparse;
-report returned connections as affected-behavior leads and never interpret a
-silent traversal as "unused" or "no impact."
+`exploreKnowledgeGraph`, or a targeted `queryGraph` traversal from the Code
+anchor into its connected Business, UI, and Data context. If the traversal is
+silent, fall back to source analysis and never interpret silence as "unused"
+or "no impact."
 
 ## Empty and failed results
 
@@ -187,8 +261,13 @@ turning it into a negative finding.
 **Coverage and uncertainty**
 - <scope checked and any evidence that remains unconfirmed>
 
+**Graph usage**
+- <tools called with one-line yield each; tools deliberately skipped and the
+  reason. "Local tools were faster/more familiar" is a bias, not a reason.>
+
 **Recommended approach**
 - <1-3 concrete implications for implementation or debugging>
 ```
 
-Only include sections with content. Always include `Recommended approach`.
+Only include sections with content. Always include `Graph usage` and
+`Recommended approach`.
