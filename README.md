@@ -20,15 +20,18 @@ automatically.
 
 ## What it does
 
-The `/deepmorph:map` skill queries a four-layer knowledge graph:
+The `/deepmorph:map` skill queries one connected, four-layer knowledge graph:
 
 - **Code** — parser-derived files, functions, types, and variables.
 - **Business** — features, rules, scenarios, and ordered steps.
 - **UIComponent** — pages, screens, and significant product surfaces.
 - **Data** — domain entities and their lifecycle relationships.
 
-It synthesizes a focused, task-oriented context summary, then continues with
-the coding work.
+Business behavior links to implementing functions, entities, and UI surfaces;
+UI surfaces link back to source resources and types; and data lifecycle edges
+identify the functions that create, use, validate, transform, filter, and save
+each entity. The skill uses those connections to synthesize focused,
+task-oriented context, then continues with the coding work.
 
 It is built for a coding agent that already has your source. Rather than
 duplicating what a local grep does, it leans on what the graph knows and your
@@ -38,23 +41,25 @@ filesystem doesn't:
   call/data-lifecycle chains that span many files.
 - **Behavioral flow reconstruction** — real scenario branches and step order
   from `NEXT_SCENARIO` and `NEXT_STEP`, rather than guesses based on names.
-- **Cross-layer orientation** — bounded exploration across application,
-  business, data, code, and platform evidence.
+- **Cross-layer implementation context** — connect source files and symbols to
+  the business behavior, UI surfaces, and data lifecycle they implement.
 - **Indexed code coverage** — per-codebase file-path counts and samples for
   existence and parity checks.
 
-The skill reads your files and searches text with your own tools, uses the graph
-for the cross-cutting knowledge above, and reconciles the graph (built at a
-specific commit) against your working tree so stale facts don't slip through.
-The Code layer is parser-derived; Business, UIComponent, and Data projections
-may be incomplete, so the skill verifies negative claims against source.
+The skill reads your files and searches text with your own tools, then uses the
+resulting paths and symbols as anchors for relational graph analysis. Locating a
+string is not treated as sufficient evidence for page grouping, behavioral
+ownership, data responsibility, or impact. The graph is reconciled against your
+working tree because it was built at a specific commit. Business, UIComponent,
+and Data projections may be incomplete, so a missing connection is verified in
+source rather than treated as proof of absence.
 
 ## MCP tools
 
 | Tool | Purpose |
 |---|---|
 | `bootstrap` | Select a graph and return its schema, codebases, and graph build provenance. |
-| `exploreKnowledgeGraph` | Run bounded first-pass orientation across graph layers with coverage and gap reporting. |
+| `exploreKnowledgeGraph` | Connect task terms or exact source anchors across Business, UI, Data, Code, and platform context, with coverage and gap reporting. |
 | `namespaceDirectory` | Return the complete grouped flow index plus exact unclassified coverage and bounded stable identifiers. |
 | `traceFlow` | Expand exact flows, namespace families, or natural-language matches into scenario branches and stable step order. |
 | `searchCode` | Search parser-authoritative file paths and report per-codebase counts, samples, and zero-match scopes. |
