@@ -54,13 +54,18 @@ working tree because it was built at a specific commit. Business, UIComponent,
 and Data projections may be incomplete, so a missing connection is verified in
 source rather than treated as proof of absence.
 
+For completeness questions, namespaces are coverage units rather than search
+hints. The skill accounts for every plausible journey, namespace, singleton,
+and unclassified identifier, expanding each relevant entry separately before
+claiming that all rules, values, conditions, or branches have been covered.
+
 ## MCP tools
 
 | Tool | Purpose |
 |---|---|
-| `bootstrap` | Select a graph and return its schema, codebases, and graph build provenance. |
+| `bootstrap` | Select a graph and return its schema, codebases, build provenance, and compact complete journey/namespace directory. |
 | `exploreKnowledgeGraph` | Connect task terms or exact source anchors across Business, UI, Data, Code, and platform context, with coverage and gap reporting. |
-| `namespaceDirectory` | Return the complete grouped flow index plus exact unclassified coverage and bounded stable identifiers. |
+| `namespaceDirectory` | Refresh the complete grouped flow index for a codebase scope; bootstrap already includes the unscoped compact index. |
 | `traceFlow` | Expand exact flows, namespace families, or natural-language matches into scenario branches and stable step order. |
 | `searchCode` | Search parser-authoritative file paths and report per-codebase counts, samples, and zero-match scopes. |
 | `getCallChain` | Trace outbound calls and direct inbound callers; loose names return qualified-name candidates for retry. |
