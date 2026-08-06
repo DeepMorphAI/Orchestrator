@@ -79,6 +79,10 @@ the UI, Business, or Data edges above.
    - Use `bootstrap.schema` as the live storage-shape reference and
      `bootstrap.codebases` as the complete codebase scope for the selected
      graph.
+   - Treat `bootstrap.flow_directory` as the complete unscoped journey and
+     namespace index. Review its journeys, multi-scenario namespaces,
+     singletons, and unclassified identifiers before deciding which behavioral
+     areas are relevant.
    - Note each entry in `bootstrap.builds`. If the working tree is ahead of
      its `git_commit_hash`, verify affected graph facts in source.
 
@@ -98,6 +102,10 @@ the UI, Business, or Data edges above.
    is skipped for such a claim anyway, the graph-usage line must say so and
    give the reason. Run independent lookups in parallel when the client
    supports parallel MCP calls.
+   Questions about rules, valid values, eligibility, compatibility,
+   exclusions, conditions, or state-specific behavior must first be matched
+   against every plausible entry in `bootstrap.flow_directory`; expand each
+   plausible entry separately with `traceFlow` before answering.
 
 4. Before repo/filesystem inspection after graph lookup, load the shell tool
    schema first:
@@ -164,10 +172,11 @@ read-only, parameterized, and grounded in `bootstrap.schema`.
 
 | Signal | Primary tool | How to use it |
 |---|---|---|
-| Task stated in product/business terms with no code anchor yet | `namespaceDirectory` or `traceFlow`, then descend | Resolve the journey or scenario first, then follow its steps' `USES_FUNC`, `USES_UI`, and `USES_ENTITY` links (targeted `queryGraph`, `getCallChain`, `getDataFlow`) down to the implementing code. |
+| Rules, valid values, eligibility, compatibility, exclusions, conditions, or state-specific behavior | `bootstrap.flow_directory`, then `traceFlow` | Match every plausible journey, namespace, singleton, and listed unclassified identifier. Expand each plausible entry separately; an unexpanded entry is unlooked-at, not irrelevant. |
+| Task stated in product/business terms with no code anchor yet | `bootstrap.flow_directory`, then `traceFlow` and descend | Match plausible journeys and namespaces from bootstrap first; use `namespaceDirectory` only for a scoped refresh. Expand the flow, then follow `USES_FUNC`, `USES_UI`, and `USES_ENTITY` links into implementing code. |
 | Unfamiliar subsystem, architecture, integration, or broad task | `exploreKnowledgeGraph` | First-pass orientation only. Choose the closest mode and provide specific seed terms. Its balanced sample is not a complete inventory. |
 | Focused flow, journey, sequence, stages, or branches | `traceFlow` | Expand the real `NEXT_SCENARIO` branches and `NEXT_STEP` order. Retry with a directory entry when the term is unresolved or diffuse. A `family` resolution intentionally expands every matching namespace under the prefix. |
-| Whole-flow coverage, parity, or cross-system flow comparison | `namespaceDirectory`, then `traceFlow` | Pull the complete grouped index first, expand every relevant entry separately, then compare expansions. Never infer steps from a name. |
+| Whole-flow coverage, parity, or cross-system flow comparison | `bootstrap.flow_directory`, then `traceFlow` | Use the complete bootstrap index, or call `namespaceDirectory` for a codebase-scoped refresh. Expand every relevant entry separately, then compare expansions. Never infer steps from a name. |
 | Function or method name | `getCallChain` | Exact qualified names resolve directly. A loose name returns token-scored candidates; retry the intended candidate for outbound transitive calls and direct inbound callers. |
 | Data entity or model name | `getDataFlow` | Returns lifecycle-function links and peer entity associations. Matching is case-insensitive; retry a returned candidate on a miss. |
 | Existence, surface parity, or likely implementation paths | `searchCode` | Search concept terms across every relevant codebase. Returns file-path counts and samples, not contents or proof of behavior. Inspect positive paths in source; treat zero as unconfirmed, never absent. |
@@ -190,15 +199,50 @@ which passes produced evidence; they do not turn the returned sample into a
 complete inventory. Do not use `exploreKnowledgeGraph` for completeness,
 parity, or absence claims.
 
+### Namespace anchors
+
+A namespace is both the unit of modeled-flow completeness and reusable graph
+vocabulary. Seeing a namespace in the directory is discovery, not coverage.
+Before any complete/all/other-conditions claim:
+
+1. Build a namespace coverage ledger from every plausible journey, namespace,
+   singleton, and listed unclassified identifier in `bootstrap.flow_directory`.
+2. Include plausible sibling namespaces, not only the closest lexical match.
+3. Mark each entry `expanded` only after a separate `traceFlow` call, or
+   `excluded` with graph or source evidence tied to the question.
+4. If the unclassified list is truncated, narrow with a codebase-scoped
+   `namespaceDirectory` call and verify the remaining scope in source. Do not
+   make a definitive completeness claim while relevant entries are unaccounted.
+
+After coverage is established, reuse each relevant namespace across tools:
+
+1. Pass the exact namespace to `traceFlow` to expand its scenarios and ordered
+   steps. For a namespace family, use a directory prefix that resolves with
+   `resolution_mode: family`, and verify every returned namespace is relevant.
+2. Pass the namespace and its meaningful leaf terms as `seed_terms` to
+   `exploreKnowledgeGraph`. Use `implementation_trace` to connect the behavior
+   to Business/UI/Code context or `data_flow` to connect it to entity lifecycle
+   evidence.
+3. Use the namespace as a parameter in `queryGraph` for exact or prefix-scoped
+   traversal from `Scenario` nodes through `HAS_STEP`, `USES_FUNC`, `USES_UI`,
+   and `USES_ENTITY`. Bind and return every relationship variable so the result
+   preserves those connections.
+4. Feed qualified function names found by the traversal into `getCallChain`,
+   and entity names into `getDataFlow`.
+5. `searchCode` searches file paths, not namespace properties. Use meaningful
+   namespace segments and source synonyms as search terms, then inspect the
+   returned paths; do not assume the dotted namespace itself is a file path.
+
 ### Flow completeness
 
 For a focused, already-known flow, call `traceFlow` directly. For broad flow
-questions, coverage checks, or comparisons:
+questions, coverage checks, or comparisons, start with
+`bootstrap.flow_directory`. Call `namespaceDirectory` only for a codebase-scoped
+refresh or when the bootstrap directory is unavailable:
 
-1. Call `namespaceDirectory` first and review every journey and namespace,
-   including single-scenario entries, the exact unclassified count, and every
-   stable identifier in its bounded listing; narrow with `codebase_ids` when
-   that listing is sampled.
+1. Review every journey and namespace, including single-scenario entries, the
+   exact unclassified count, and every stable identifier in its bounded
+   listing; narrow with `codebase_ids` when that listing is sampled.
 2. Treat unclear entries as in scope until expanded. An entry present in the
    directory but not expanded is unlooked-at, not absent.
 3. Call `traceFlow` once per relevant entry and once per comparison side, then
@@ -261,6 +305,10 @@ turning it into a negative finding.
 **Coverage and uncertainty**
 - <scope checked and any evidence that remains unconfirmed>
 
+**Namespace coverage**
+- <for completeness claims: entries expanded, entries excluded with reasons,
+  and unclassified/truncated coverage>
+
 **Graph usage**
 - <tools called with one-line yield each; tools deliberately skipped and the
   reason. "Local tools were faster/more familiar" is a bias, not a reason.>
@@ -270,4 +318,6 @@ turning it into a negative finding.
 ```
 
 Only include sections with content. Always include `Graph usage` and
-`Recommended approach`.
+`Recommended approach`. Include `Namespace coverage` for every completeness,
+parity, rules, valid-values, eligibility, compatibility, exclusions, conditions,
+or state-specific answer.
