@@ -38,8 +38,8 @@ You can enter at the Business layer — a journey, scenario, feature, or rule
 named in product terms — and descend through `USES_FUNC`, `USES_UI`, and
 `USES_ENTITY` to the exact functions, surfaces, and entities that implement
 it, before opening a single file. When a task arrives in business language
-with no code anchor yet, start there (`namespaceDirectory`, `traceFlow`)
-instead of guessing grep terms.
+with no code anchor yet, start from `bootstrap.flow_directory`, then use
+`traceFlow` instead of guessing grep terms.
 
 Grouping, ownership, navigation, behavioral attribution, data responsibility,
 and impact are therefore graph questions. Local tools cannot answer them: a
@@ -82,7 +82,8 @@ the UI, Business, or Data edges above.
    - Treat `bootstrap.flow_directory` as the complete unscoped journey and
      namespace index. Review its journeys, multi-scenario namespaces,
      singletons, and unclassified identifiers before deciding which behavioral
-     areas are relevant.
+     areas are relevant. If `flow_directory` is absent because the MCP server
+     predates this field, call `namespaceDirectory` before making that decision.
    - Note each entry in `bootstrap.builds`. If the working tree is ahead of
      its `git_commit_hash`, verify affected graph facts in source.
 
@@ -104,8 +105,9 @@ the UI, Business, or Data edges above.
    supports parallel MCP calls.
    Questions about rules, valid values, eligibility, compatibility,
    exclusions, conditions, or state-specific behavior must first be matched
-   against every plausible entry in `bootstrap.flow_directory`; expand each
-   plausible entry separately with `traceFlow` before answering.
+   against every plausible entry in `bootstrap.flow_directory`, or the
+   `namespaceDirectory` response when that bootstrap field is absent. Expand
+   each plausible entry separately with `traceFlow` before answering.
 
 4. Before repo/filesystem inspection after graph lookup, load the shell tool
    schema first:
@@ -240,12 +242,10 @@ questions, coverage checks, or comparisons, start with
 `bootstrap.flow_directory`. Call `namespaceDirectory` only for a codebase-scoped
 refresh or when the bootstrap directory is unavailable:
 
-1. Review every journey and namespace, including single-scenario entries, the
-   exact unclassified count, and every stable identifier in its bounded
-   listing; narrow with `codebase_ids` when that listing is sampled.
-2. Treat unclear entries as in scope until expanded. An entry present in the
-   directory but not expanded is unlooked-at, not absent.
-3. Call `traceFlow` once per relevant entry and once per comparison side, then
+1. Apply the namespace coverage ledger above. If the unclassified listing is
+   sampled, call `namespaceDirectory` with the relevant `codebase_ids` and
+   review the scoped result before making a completeness claim.
+2. Call `traceFlow` once per relevant entry and once per comparison side, then
    compare ordered steps and alternate, failure, recovery, and background
    branches. Do not compare names alone.
 
