@@ -4,7 +4,7 @@
       "type": "http",
       "url": "https://ark-mcp-391106375625.us-central1.run.app/mcp",
       "oauth": {
-        "authServerMetadataUrl": "https://burguxexrdxlfgaehexn.supabase.co/auth/v1/.well-known/openid-configuration"
+        "authServerMetadataUrl": "https://api.deepmorph.dev/auth/v1/.well-known/openid-configuration"
       }
     }
   }
