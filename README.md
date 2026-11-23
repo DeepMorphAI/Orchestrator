@@ -20,17 +20,18 @@ automatically.
 
 ## What it does
 
-The `/deepmorph:map` skill queries one connected, four-layer knowledge graph:
+The `/deepmorph:map` skill queries one connected, three-layer knowledge graph:
 
 - **Code** — parser-derived files, functions, types, and variables.
-- **Business** — features, rules, scenarios, and ordered steps.
-- **UIComponent** — pages, screens, and significant product surfaces.
-- **Data** — domain entities and their lifecycle relationships.
+- **Business** — the app, features, journeys, scenarios, steps, events, rules,
+  screens, components, and endpoints.
+- **Data** — domain entities, their fields, and their lifecycle relationships.
 
-Business behavior links to implementing functions, entities, and UI surfaces;
-UI surfaces link back to source resources and types; and data lifecycle edges
-identify the functions that create, use, validate, transform, filter, and save
-each entity. The skill uses those connections to synthesize focused,
+Business steps, rules, screens, and components link to implementing functions;
+screens and components link back to source files and types; events and rules
+link to the entity fields they use; and data lifecycle edges identify the
+functions that create, load, use, validate, transform, filter, save, delete,
+and send each entity. The skill uses those connections to synthesize focused,
 task-oriented context, then continues with the coding work.
 
 It is built for a coding agent that already has your source. Rather than
@@ -39,10 +40,11 @@ filesystem doesn't:
 
 - **Reverse and transitive relationships** — who calls a function, and the
   call/data-lifecycle chains that span many files.
-- **Behavioral flow reconstruction** — real scenario branches and step order
-  from `NEXT_SCENARIO` and `NEXT_STEP`, rather than guesses based on names.
+- **Behavioral flow reconstruction** — each journey's main path and branches,
+  and each scenario's steps in recorded order, rather than guesses based on
+  names.
 - **Cross-layer implementation context** — connect source files and symbols to
-  the business behavior, UI surfaces, and data lifecycle they implement.
+  the business behavior, screens, and data lifecycle they implement.
 - **Indexed code coverage** — per-codebase file-path counts and samples for
   existence and parity checks.
 
@@ -50,8 +52,8 @@ The skill reads your files and searches text with your own tools, then uses the
 resulting paths and symbols as anchors for relational graph analysis. Locating a
 string is not treated as sufficient evidence for page grouping, behavioral
 ownership, data responsibility, or impact. The graph is reconciled against your
-working tree because it was built at a specific commit. Business, UIComponent,
-and Data projections may be incomplete, so a missing connection is verified in
+working tree because it was built at a specific commit. Business and Data
+projections may be incomplete, so a missing connection is verified in
 source rather than treated as proof of absence.
 
 For completeness questions, namespaces are coverage units rather than search
