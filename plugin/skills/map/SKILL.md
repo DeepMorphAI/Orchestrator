@@ -12,39 +12,52 @@ task asks a relational question.
 
 ## What the graph knows that grep cannot
 
-The graph is one connected model of every indexed codebase, in four layers.
+The graph is one connected model of every indexed codebase, in three layers.
 None of these relationships are recoverable from file contents:
 
 - **Code** (parser-derived, complete for indexed codebases): transitive call
-  chains (`CALLS_FUNC`), type dependencies (`EXTENDS_TYPE`, `DEPENDS_TYPE`,
-  `INPUTS_TYPE`, `OUTPUTS_TYPE`, `THROWS_TYPE`), and code-to-artifact links
-  (`RENDERS`, `READS_CONFIG`, `USES_QUERY`). Nodes: `Code:File`, `Code:Type`,
-  `Code:Function`, `Code:Variable`, `Code:Artifact`.
-- **UI**: `Business:UIComponent` nodes carry a `role` (`page`, `screen`,
-  `surface`). `HAS_UI` is containment (page contains form contains button),
-  `NAVIGATES_TO` is ordered navigation between surfaces, `USES_RESOURCE`
-  links a component to the source file implementing it, `USES_ARTIFACT` to a
-  template, `USES_TYPE` to the domain types it shows.
-- **Business**: journeys, scenarios, and ordered steps (`NEXT_SCENARIO`,
-  `NEXT_STEP`) plus rules and features, linked to implementing functions
-  (`USES_FUNC`), to entities (`USES_ENTITY`), and to surfaces (`USES_UI`).
-- **Data**: `Data:DataEntity` lifecycles — the functions that create, use,
-  transform, validate, filter, and save each entity (`CREATED_BY`, `USED_BY`,
-  `TRANSFORMED_BY`, `VALIDATED_BY`, `FILTERED_BY`, `SAVED_BY`) — plus entity
-  associations (`ASSOCIATES_ONE`, `ASSOCIATES_MANY`).
+  chains (`CALLS_FUNC`, plus `DISPATCHES` and `HANDS_OFF` for callbacks, jobs
+  and events, and `CALLS_REMOTE` into another codebase), type dependencies
+  (`EXTENDS_TYPE`, `DEPENDS_TYPE`, `INPUTS_TYPE`, `OUTPUTS_TYPE`,
+  `THROWS_TYPE`), and code-to-artifact links (`RENDERS`, `READS_CONFIG`,
+  `USES_QUERY`). Nodes: `Code:File`, `Code:Type`, `Code:Function`,
+  `Code:Variable`, `Code:Artifact`.
+- **Business** (inferred): the app, features, journeys, scenarios, steps,
+  events, rules, screens, components, and endpoints.
+  - Flows: `Feature -HAS_JOURNEY_HUB-> JourneyHub -HAS_JOURNEY-> UserJourney`;
+    a journey's scenarios in path order (`INCLUDES_SCENARIO`, with `path` and
+    `position`); `ScenarioHub -HAS_SCENARIO-> Scenario`; a scenario's steps
+    in order (`HAS_STEP`, with `order`); `Step -EMITS_EVENT-> Event`; rules
+    a scenario or event checks (`CHECKS_RULE`); events and rules that start a
+    hub (`TRIGGERS_HUB`).
+  - UI: `Business:Screen` and `Business:Component` nodes. `HAS_COMPONENT` is
+    containment, `NAVIGATES_SCREEN` is navigation, `SHOWN_IN` nests a screen
+    in its parent route, `USES_FILE` links a screen or component to the
+    source file implementing it, `USES_ARTIFACT` to a template, `USES_TYPE`
+    to the domain types it shows. An event's view is `USES_SCREEN` or
+    `USES_COMPONENT`.
+  - Links to code and data: `USES_FUNC` from a step, rule, screen, component
+    or endpoint to its functions; `USES_FIELD` from an event or rule to a
+    `Data:EntityField`.
+- **Data** (inferred): `Data:DataEntity` lifecycles — the functions that
+  create, load, use, validate, transform, filter, save, delete, and send each
+  entity (`CREATED_BY`, `LOADED_BY`, `USED_BY`, `VALIDATED_BY`,
+  `TRANSFORMED_BY`, `FILTERED_BY`, `SAVED_BY`, `DELETED_BY`, `SENT_BY`) —
+  plus fields (`HAS_FIELD`) and entity associations (`ASSOCIATES_ONE`,
+  `ASSOCIATES_MANY`, `CONTAINS_ENTITY`).
 
 The layers are connected, so navigation works top-down as well as bottom-up.
 You can enter at the Business layer — a journey, scenario, feature, or rule
-named in product terms — and descend through `USES_FUNC`, `USES_UI`, and
-`USES_ENTITY` to the exact functions, surfaces, and entities that implement
-it, before opening a single file. When a task arrives in business language
+named in product terms — and descend through `USES_FUNC`, an event's view
+(`USES_SCREEN`, `USES_COMPONENT`), and `USES_FIELD` to the exact functions,
+screens, and entity fields that implement it, before opening a single file. When a task arrives in business language
 with no code anchor yet, start from `bootstrap.flow_directory`, then use
 `traceFlow` instead of guessing grep terms.
 
 Grouping, ownership, navigation, behavioral attribution, data responsibility,
 and impact are therefore graph questions. Local tools cannot answer them: a
 hand-built import graph over-attributes every shared module and sees none of
-the UI, Business, or Data edges above.
+the Business or Data edges above.
 
 ## Working principle: source for facts, graph for relationships
 
@@ -63,7 +76,7 @@ the UI, Business, or Data edges above.
   in `bootstrap().builds[].git_commit_hash`; the working tree may be ahead of
   it. Confirm claims about locally changed files in source.
 - **Calibrate negative claims by layer.** Code is parser-complete for indexed
-  codebases; UI, Business, and Data are inferred projections and can be
+  codebases; Business and Data are inferred projections and can be
   incomplete. A missing inferred node or edge is never evidence of absence.
 
 ## Behavior
@@ -138,27 +151,28 @@ the pages group and what behavior each group serves.
 1. Keep the exact file paths and component names from grep as anchors.
 2. Call `exploreKnowledgeGraph(goal="page grouping and ownership for <area>",
    seed_terms=[<paths and component names>])` to surface the matching
-   `UIComponent` nodes and their connected Business/Code context.
+   `Screen` and `Component` nodes and their connected Business/Code context.
 3. Where the sample does not expose the needed relationship, run targeted
    `queryGraph` traversals grounded in `bootstrap.schema`. Bind and return
    paths and relationships so `queryGraph` preserves the grouping structure.
    For containment and implementation:
 
    ```cypher
-   MATCH path=(p:Business:UIComponent {role: 'page'})-[:HAS_UI*0..3]->(c:Business:UIComponent)
-   MATCH (c)-[resource:USES_RESOURCE]->(f:Code:File)
+   MATCH path=(s:Business:Screen)-[:HAS_COMPONENT*0..3]->(c:Business)
+   MATCH (c)-[file:USES_FILE]->(f:Code:File)
    WHERE f.file_path IN $paths
-   RETURN path, resource, f
+   RETURN path, file, f
    ```
 
-   For behavioral ownership from the Feature, Scenario, or Step side:
+   For behavioral ownership from the Step side (a step emits an event, and
+   the event happens on one screen or component):
 
    ```cypher
-   MATCH (owner:Business)-[uses:USES_UI]->(surface:Business:UIComponent)
-   MATCH path=(surface)-[:HAS_UI*0..3]->(c:Business:UIComponent)
-   MATCH (c)-[resource:USES_RESOURCE]->(f:Code:File)
+   MATCH (step:Business:Step)-[emits:EMITS_EVENT]->(e:Business:Event)-[view:USES_SCREEN|USES_COMPONENT]->(v:Business)
+   MATCH path=(v)-[:HAS_COMPONENT*0..3]->(c:Business)
+   MATCH (c)-[file:USES_FILE]->(f:Code:File)
    WHERE f.file_path IN $paths
-   RETURN owner, uses, path, resource, f
+   RETURN step, emits, e, view, path, file, f
    ```
 4. Reconcile the resulting grouping against source, especially files changed
    locally since the graph's build commit.
@@ -175,15 +189,15 @@ read-only, parameterized, and grounded in `bootstrap.schema`.
 | Signal | Primary tool | How to use it |
 |---|---|---|
 | Rules, valid values, eligibility, compatibility, exclusions, conditions, or state-specific behavior | `bootstrap.flow_directory`, then `traceFlow` | Match every plausible journey, namespace, singleton, and listed unclassified identifier. Expand each plausible entry separately; an unexpanded entry is unlooked-at, not irrelevant. |
-| Task stated in product/business terms with no code anchor yet | `bootstrap.flow_directory`, then `traceFlow` and descend | Match plausible journeys and namespaces from bootstrap first; use `namespaceDirectory` only for a scoped refresh. Expand the flow, then follow `USES_FUNC`, `USES_UI`, and `USES_ENTITY` links into implementing code. |
+| Task stated in product/business terms with no code anchor yet | `bootstrap.flow_directory`, then `traceFlow` and descend | Match plausible journeys and namespaces from bootstrap first; use `namespaceDirectory` only for a scoped refresh. Expand the flow, then follow `USES_FUNC`, each event's view, and `USES_FIELD` links into implementing code. |
 | Unfamiliar subsystem, architecture, integration, or broad task | `exploreKnowledgeGraph` | First-pass orientation only. Choose the closest mode and provide specific seed terms. Its balanced sample is not a complete inventory. |
-| Focused flow, journey, sequence, stages, or branches | `traceFlow` | Expand the real `NEXT_SCENARIO` branches and `NEXT_STEP` order. Retry with a directory entry when the term is unresolved or diffuse. A `family` resolution intentionally expands every matching namespace under the prefix. |
+| Focused flow, journey, sequence, stages, or branches | `traceFlow` | Expand each journey's main path and every branch, and each scenario's steps in recorded order. When it returns the directory instead (`resolved: false`), retry with an exact id from it. A `PARTIAL` expansion must be narrowed before a completeness claim. |
 | Whole-flow coverage, parity, or cross-system flow comparison | `bootstrap.flow_directory`, then `traceFlow` | Use the complete bootstrap index, or call `namespaceDirectory` for a codebase-scoped refresh. Expand every relevant entry separately, then compare expansions. Never infer steps from a name. |
 | Function or method name | `getCallChain` | Exact qualified names resolve directly. A loose name returns token-scored candidates; retry the intended candidate for outbound transitive calls and direct inbound callers. |
 | Data entity or model name | `getDataFlow` | Returns lifecycle-function links and peer entity associations. Matching is case-insensitive; retry a returned candidate on a miss. |
 | Existence, surface parity, or likely implementation paths | `searchCode` | Search concept terms across every relevant codebase. Returns file-path counts and samples, not contents or proof of behavior. Inspect positive paths in source; treat zero as unconfirmed, never absent. |
-| Source search found files/components and the task asks how they group, what owns them, or what behavior they implement | `exploreKnowledgeGraph`, then targeted `queryGraph` | Follow the worked example above: seed with exact paths and symbols, follow the returned Business/UI/Data/Code connections, then traverse. |
-| File/function impact, cross-layer trace, exact inventory, or a question no typed tool covers | `queryGraph` | Write a targeted read-only query from `bootstrap.schema`. Start from exact Code anchors and traverse the connected Business, UI, and Data edges. Use count queries when completeness matters. |
+| Source search found files/components and the task asks how they group, what owns them, or what behavior they implement | `exploreKnowledgeGraph`, then targeted `queryGraph` | Follow the worked example above: seed with exact paths and symbols, follow the returned Business/Data/Code connections, then traverse. |
+| File/function impact, cross-layer trace, exact inventory, or a question no typed tool covers | `queryGraph` | Write a targeted read-only query from `bootstrap.schema`. Start from exact Code anchors and traverse the connected Business and Data edges. Use count queries when completeness matters. |
 
 ### Exploration modes
 
@@ -218,17 +232,19 @@ Before any complete/all/other-conditions claim:
 
 After coverage is established, reuse each relevant namespace across tools:
 
-1. Pass the exact namespace to `traceFlow` to expand its scenarios and ordered
-   steps. For a namespace family, use a directory prefix that resolves with
-   `resolution_mode: family`, and verify every returned namespace is relevant.
+1. Pass the exact id from the directory to `traceFlow` to expand its
+   scenarios and ordered steps. Expand related entries one by one, and verify
+   every returned scenario is relevant.
 2. Pass the namespace and its meaningful leaf terms as `seed_terms` to
    `exploreKnowledgeGraph`. Use `implementation_trace` to connect the behavior
-   to Business/UI/Code context or `data_flow` to connect it to entity lifecycle
+   to Business/Code context or `data_flow` to connect it to entity lifecycle
    evidence.
-3. Use the namespace as a parameter in `queryGraph` for exact or prefix-scoped
-   traversal from `Scenario` nodes through `HAS_STEP`, `USES_FUNC`, `USES_UI`,
-   and `USES_ENTITY`. Bind and return every relationship variable so the result
-   preserves those connections.
+3. Pass the entry's exact id as a parameter to `queryGraph` and traverse from
+   its `Scenario` nodes through `HAS_STEP`, `USES_FUNC`, `EMITS_EVENT`, the
+   event's `USES_SCREEN` or `USES_COMPONENT`, and `USES_FIELD`. A directory id
+   is a node's `qualified_name`, `unique_id`, or `name`, in that order. Bind
+   and return every relationship variable so the result preserves those
+   connections.
 4. Feed qualified function names found by the traversal into `getCallChain`,
    and entity names into `getDataFlow`.
 5. `searchCode` searches file paths, not namespace properties. Use meaningful
@@ -249,10 +265,9 @@ refresh or when the bootstrap directory is unavailable:
    compare ordered steps and alternate, failure, recovery, and background
    branches. Do not compare names alone.
 
-`traceFlow` reports `resolution_mode`: `exact` is one selected grouping or
-stable scenario identifier, `family` combines every namespace below a prefix,
-`token` is natural-language resolution. If a stage is missing from the
-directory, search likely configuration, route, wizard, page, and component
+`traceFlow` reports `resolved: false` and returns the directory when a term
+is unmatched or spread across too many hubs, and marks a capped expansion
+`PARTIAL`. If a stage is missing from the directory, search likely configuration, route, wizard, page, and component
 terms with `searchCode`, then inspect source before making a claim.
 
 ### Existence and parity
@@ -270,7 +285,7 @@ terms with `searchCode`, then inspect source before making a claim.
 There is no dedicated file-context or impact tool. Read the file in source,
 then use the exact identifiers it contains with `getCallChain`, `getDataFlow`,
 `exploreKnowledgeGraph`, or a targeted `queryGraph` traversal from the Code
-anchor into its connected Business, UI, and Data context. If the traversal is
+anchor into its connected Business and Data context. If the traversal is
 silent, fall back to source analysis and never interpret silence as "unused"
 or "no impact."
 
